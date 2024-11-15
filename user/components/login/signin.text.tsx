@@ -1,4 +1,4 @@
-import { View, Text } from "react-native";
+import { Text } from "react-native";
 import React from "react";
 import { commonStyles } from "@/styles/common.style";
 import { external } from "@/styles/external.style";
@@ -27,7 +27,7 @@ export default function SignInText({
       >
         {subtitle
           ? subtitle
-          : "Enter your phone number, get one otp and let's go 😍"}
+          : "Enter your phone number, get one OTP and let's go."}
       </Text>
     </>
   );
