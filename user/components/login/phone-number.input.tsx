@@ -4,56 +4,65 @@ import { windowHeight, windowWidth } from "@/themes/app.constant";
 import { external } from "@/styles/external.style";
 import styles from "@/screens/login/styles";
 import color from "@/themes/app.colors";
+import SelectInput from "../common/select-input";
+import { useState } from "react";
+import { countryItems } from "@/configs/country-list";
 
-export default function PhoneNumberInput({ width }: any) {
-  return (
-    <View>
-      <Text
-        style={[commonStyles.mediumTextBlack, { marginTop: windowHeight(8) }]}
-      >
-        Phone Number
-      </Text>
-      <View
-        style={[
-          external.fd_row,
-          external.ai_center,
-          external.mt_5,
-          { flexDirection: "row" },
-        ]}
-      >
-        <View
-          style={[
-            styles.countryCodeContainer,
-            {
-              borderColor: color.border,
-            },
-          ]}
-        >
-          <TextInput
-            style={[commonStyles.regularText]}
-            placeholderTextColor={color.subtitle}
-            placeholder="+880"
-            keyboardType="numeric"
-          />
+export default function PhoneNumberInput({
+                                             width
+                                         }: any) {
+    const [countryCode, setCountryCode] = useState('+84')
+    return (
+        <View>
+            <Text
+                style={[commonStyles.mediumTextBlack, { marginTop: windowHeight(8) }]}
+            >
+                Phone Number
+            </Text>
+            <View
+                style={[
+                    external.fd_row,
+                    external.ai_center,
+                    external.mt_5,
+                    { flexDirection: "row" },
+                ]}
+            >
+                <View
+                    style={[
+                        styles.countryCodeContainer,
+                        {
+                            borderColor: color.border,
+                        },
+                    ]}
+                >
+                    <SelectInput
+                        title="+84"
+                        placeholder="Select your country"
+                        value={countryCode}
+                        onValueChange={(text) => setCountryCode(text)}
+                        showWarning={false}
+                        warning={"Please choose your country code!"}
+                        items={countryItems}
+                    />
+                </View>
+                <View
+                    style={[
+                        styles.phoneNumberInput,
+                        {
+                            width: width || windowWidth(346),
+                            borderColor: color.border,
+                        },
+                    ]}
+                >
+                    <TextInput
+                        style={[commonStyles.regularText]}
+                        placeholderTextColor={color.subtitle}
+                        placeholder={"Enter your number"}
+                        keyboardType="numeric"
+                        maxLength={10}
+                    />
+                </View>
+            </View>
         </View>
-        <View
-          style={[
-            styles.phoneNumberInput,
-            {
-              width: width || windowWidth(326),
-              borderColor: color.border,
-            },
-          ]}
-        >
-          <TextInput
-            style={[commonStyles.regularText]}
-            placeholderTextColor={color.subtitle}
-            placeholder={"Enter your number"}
-            keyboardType="numeric"
-            maxLength={10}
-          />
-        </View>
-      </View>
-    </View>
-  );
+    );
 }
