@@ -1,9 +1,9 @@
 require("dotenv").config();
 import { NextFunction, Request, Response } from "express";
 import twilio from "twilio";
-// import prisma from "../utils/prisma";
+import prisma from "../utils/prisma";
 import jwt from "jsonwebtoken";
-// import { nylas } from "../app";
+import { nylas } from "../app";
 // import { sendToken } from "../utils/send-token";
 
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
@@ -61,26 +61,31 @@ export const verifyOtp = async (
                     code: otp,
                 });
             // is user exist
-            // const isUserExist = await prisma.user.findUnique({
-            //     where: {
-            //         phoneNumber,
-            //     },
-            // });
-            // if (isUserExist) {
-            //     await sendToken(isUserExist, res);
-            // } else {
-            //     // create account
-            //     const user = await prisma.user.create({
-            //         data: {
-            //             phoneNumber: phoneNumber,
-            //         },
-            //     });
+            const isUserExist = await prisma.user.findUnique({
+                where: {
+                    phoneNumber,
+                },
+            });
+            if (isUserExist) {
                 res.status(200).json({
                     success: true,
                     message: "OTP verified successfully!",
-                    // user: user,
+                    user: isUserExist,
                 });
-            // }
+                // await sendToken(isUserExist, res);
+            } else {
+                // create account
+                const user = await prisma.user.create({
+                    data: {
+                        phoneNumber: phoneNumber,
+                    },
+                });
+                res.status(200).json({
+                    success: true,
+                    message: "OTP verified successfully!",
+                    user: user,
+                });
+            }
         } catch (error) {
             console.log(error);
             res.status(400).json({
@@ -97,66 +102,66 @@ export const verifyOtp = async (
 };
 
 // // sending otp to email
-// export const sendingOtpToEmail = async (
-//     req: Request,
-//     res: Response,
-//     next: NextFunction
-// ) => {
-//     try {
-//         const { email, name, userId } = req.body;
-//
-//         const otp = Math.floor(1000 + Math.random() * 9000).toString();
-//         const user = {
-//             userId,
-//             name,
-//             email,
-//         };
-//         const token = jwt.sign(
-//             {
-//                 user,
-//                 otp,
-//             },
-//             process.env.EMAIL_ACTIVATION_SECRET!,
-//             {
-//                 expiresIn: "5m",
-//             }
-//         );
-//         try {
-//             await nylas.messages.send({
-//                 identifier: process.env.USER_GRANT_ID!,
-//                 requestBody: {
-//                     to: [{ name: name, email: email }],
-//                     subject: "Verify your email address!",
-//                     body: `
-//           <p>Hi ${name},</p>
-//       <p>Your Ridewave verification code is ${otp}. If you didn't request for this OTP, please ignore this email!</p>
-//       <p>Thanks,<br>Ridewave Team</p>
-//           `,
-//                 },
-//             });
-//             res.status(201).json({
-//                 success: true,
-//                 token,
-//             });
-//         } catch (error: any) {
-//             res.status(400).json({
-//                 success: false,
-//                 message: error.message,
-//             });
-//             console.log(error);
-//         }
-//     } catch (error) {
-//         console.log(error);
-//     }
-// };
-//
+export const sendingOtpToEmail = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+) => {
+    try {
+        const { email, name, userId } = req.body;
+
+        const otp = Math.floor(1000 + Math.random() * 9000).toString();
+        const user = {
+            userId,
+            name,
+            email,
+        };
+        const token = jwt.sign(
+            {
+                user,
+                otp,
+            },
+            process.env.EMAIL_ACTIVATION_SECRET!,
+            {
+                expiresIn: "5m",
+            }
+        );
+        try {
+            await nylas.messages.send({
+                identifier: process.env.USER_GRANT_ID!,
+                requestBody: {
+                    to: [{ name: name, email: email }],
+                    subject: "Verify your email address!",
+                    body: `
+          <p>Hi ${name},</p>
+      <p>Your Swyft verification code is ${otp}. If you didn't request for this OTP, please ignore this email!</p>
+      <p>Thanks,<br>Swyft Team</p>
+          `,
+                },
+            });
+            res.status(201).json({
+                success: true,
+                token,
+            });
+        } catch (error: any) {
+            res.status(400).json({
+                success: false,
+                message: error.message,
+            });
+            console.log(error);
+        }
+    } catch (error) {
+        console.log(error);
+    }
+};
+
 // // verifying email otp
-// export const verifyingEmail = async (
-//     req: Request,
-//     res: Response,
-//     next: NextFunction
-// ) => {
-//     try {
+export const verifyingEmail = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+) => {
+    try {
 //         const { otp, token } = req.body;
 //
 //         const newUser: any = jwt.verify(
@@ -172,33 +177,43 @@ export const verifyOtp = async (
 //         }
 //
 //         const { name, email, userId } = newUser.user;
-//
-//         const user = await prisma.user.findUnique({
-//             where: {
-//                 id: userId,
-//             },
-//         });
-//         if (user?.email === null) {
-//             const updatedUser = await prisma.user.update({
-//                 where: {
-//                     id: userId,
-//                 },
-//                 data: {
-//                     name: name,
-//                     email: email,
-//                 },
-//             });
-//             await sendToken(updatedUser, res);
-//         }
-//     } catch (error) {
-//         console.log(error);
-//         res.status(400).json({
-//             success: false,
-//             message: "Your otp is expired!",
-//         });
-//     }
-// };
-//
+        const { name, email, userId } = req.body;
+
+        const user = await prisma.user.findUnique({
+            where: {
+                id: userId,
+            },
+        });
+        if (user?.email === null) {
+            const updatedUser = await prisma.user.update({
+                where: {
+                    id: userId,
+                },
+                data: {
+                    name: name,
+                    email: email,
+                },
+            });
+            res.status(201).json({
+                success: true,
+                user: updatedUser,
+            })
+        //     await sendToken(updatedUser, res);
+        } else {
+            res.status(400).json({
+                success: false,
+                message: "User already exists!",
+            })
+        }
+    } catch (error) {
+        console.log(error);
+        res.status(400).json({
+            success: false,
+            message: "Your otp is expired!",
+        });
+    }
+};
+
 // // get logged in user data
 // export const getLoggedInUserData = async (req: any, res: Response) => {
 //     try {
