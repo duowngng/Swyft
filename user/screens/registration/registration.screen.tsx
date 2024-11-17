@@ -31,31 +31,32 @@ export default function RegistrationScreen() {
 
 
     const handleSubmit = async () => {
-    //     setLoading(true);
-    //     await axios
-    //         .post(`${process.env.EXPO_PUBLIC_SERVER_URI}/email-otp-request`, {
-    //             email: formData.email,
-    //             name: formData.name,
-    //             userId: parsedUser.id,
-    //         })
-    //         .then((res) => {
-    //             setLoading(false);
-    //             const userData: any = {
-    //                 id: parsedUser.id,
-    //                 name: formData.name,
-    //                 email: formData.email,
-    //                 phone_number: parsedUser.phone_number,
-    //                 token: res.data.token,
-    //             };
-    //             router.push({
-    //                 pathname: "/(routes)/email-verification",
-    //                 params: { user: JSON.stringify(userData) },
-    //             });
-    //         })
-    //         .catch((error) => {
-    //             setLoading(false);
-    //             console.log(error);
-    //         });
+        setLoading(true);
+        await axios
+            .post(`${process.env.EXPO_PUBLIC_SERVER_URI}/email-otp-request`, {
+                email: formData.email,
+                name: formData.name,
+                userId: parsedUser.id,
+            })
+            .then((res) => {
+                setLoading(false);
+                console.log(res);
+                const userData: any = {
+                    id: parsedUser.id,
+                    name: formData.name,
+                    email: formData.email,
+                    phoneNumber: parsedUser.phoneNumber,
+                    token: res.data.token,
+                };
+                router.push({
+                    pathname: "/(routes)/email-verification",
+                    params: { user: JSON.stringify(userData) },
+                });
+            })
+            .catch((error) => {
+                setLoading(false);
+                console.log(error);
+            });
     };
 
     return (
@@ -92,7 +93,7 @@ export default function RegistrationScreen() {
                             <Input
                                 title="Phone Number"
                                 placeholder="Enter your phone number"
-                                value={"+84944670350"}
+                                value={parsedUser?.phoneNumber}
                                 disabled={true}
                             />
                             <Input

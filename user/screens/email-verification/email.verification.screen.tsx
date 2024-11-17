@@ -1,62 +1,45 @@
 import { View, Text, TouchableOpacity } from "react-native";
 import React, { useState } from "react";
+import { router, useLocalSearchParams } from "expo-router";
 import AuthContainer from "@/utils/container/auth-container";
 import { windowHeight } from "@/themes/app.constant";
 import SignInText from "@/components/login/signin.text";
-import OTPTextInput from "react-native-otp-textinput";
-import { styles } from "./styles";
-import color from "@/themes/app.colors";
+import { commonStyles } from "@/styles/common.style";
 import { external } from "@/styles/external.style";
 import Button from "@/components/common/button";
-import { router, useLocalSearchParams } from "expo-router";
-import { commonStyles } from "@/styles/common.style";
-import { useToast } from "react-native-toast-notifications";
+import { styles } from "../otp-verification/styles";
+import color from "@/themes/app.colors";
+import { Toast } from "react-native-toast-notifications";
+import OTPTextInput from "react-native-otp-textinput";
 import axios from "axios";
 // import AsyncStorage from "@react-native-async-storage/async-storage";
 
-
-export default function OtpVerificationScreen() {
+export default function EmailVerificationScreen() {
     const [otp, setOtp] = useState("");
-    const [loading, setLoading] = useState(false);
-    const toast = useToast();
-    const { number }  = useLocalSearchParams();
-
+    const [loader, setLoader] = useState(false);
+    const { user } = useLocalSearchParams() as any;
+    const parsedUser = JSON.parse(user);
 
     const handleSubmit = async () => {
-        if (otp === "") {
-            toast.show("Please fill the fields!", {
-                placement: "bottom",
-            });
-        } else {
-            setLoading(true);
-            const otpNumber = `${otp}`;
-            await axios
-                .post(`${process.env.EXPO_PUBLIC_SERVER_URI}/verify-otp`, {
-                    phoneNumber: number,
-                    otp: otpNumber,
-                })
-                .then((res) => {
-                    console.log(res);
-                    setLoading(false);
-                    if (res.data.user.email === null) {
-                        router.push({
-                            pathname: "/(routes)/registration",
-                            params: { user: JSON.stringify(res.data.user) },
-                        });
-                        toast.show("Account verified!");
-                    } else {
-                        // await AsyncStorage.setItem("accessToken", res.data.accessToken);
-                        router.push("/(tabs)/home");
-                    }
-                })
-                .catch((error) => {
-                    setLoading(false);
-                    toast.show("Something went wrong! Please check your OTP!", {
-                        type: "danger",
-                        placement: "bottom",
-                    });
-                });
-        }
+        // setLoader(true);
+        // const otpNumbers = `${otp}`;
+        // await axios
+        //     .put(`${process.env.EXPO_PUBLIC_SERVER_URI}/email-otp-verify`, {
+        //         token: parsedUser.token,
+        //         otp: otpNumbers,
+        //     })
+        //     .then(async (res: any) => {
+        //         setLoader(false);
+        //         await AsyncStorage.setItem("accessToken", res.data.accessToken);
+        //         router.push("/(tabs)/home");
+        //     })
+        //     .catch((error) => {
+        //         setLoader(false);
+        //         Toast.show(error.message, {
+        //             placement: "bottom",
+        //             type: "danger",
+        //         });
+        //     });
     };
 
     return (
@@ -66,8 +49,8 @@ export default function OtpVerificationScreen() {
             container={
                 <View>
                     <SignInText
-                        title={"OTP Verification"}
-                        subtitle={"Check your phone number for the OTP!"}
+                        title={"Email Verification"}
+                        subtitle={"Check your email address for the otp!"}
                     />
                     <OTPTextInput
                         handleTextChange={(code) => setOtp(code)}
@@ -80,7 +63,7 @@ export default function OtpVerificationScreen() {
                         <Button
                             title="Verify"
                             onPress={() => handleSubmit()}
-                            disabled={loading}
+                            disabled={loader}
                         />
                     </View>
                     <View style={[external.mb_15]}>

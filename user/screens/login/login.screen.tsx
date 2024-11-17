@@ -53,7 +53,6 @@ export default function LoginScreen() {
                 })
                 .then((res) => {
                     setLoading(false);
-                    console.log(res);
                     router.push({
                         pathname: "/(routes)/otp-verification",
                         params: { number },
@@ -91,7 +90,7 @@ export default function LoginScreen() {
                                 />
                                 <View style={[external.mt_25, external.Pb_15]}>
                                     <Button
-                                        title="Get Otp"
+                                        title="Get OTP"
                                         onPress={() => handleSubmit()}
                                         disabled={loading}
                                     />
