@@ -4,7 +4,7 @@ import twilio from "twilio";
 import prisma from "../utils/prisma";
 import jwt from "jsonwebtoken";
 import { nylas } from "../app";
-// import { sendToken } from "../utils/send-token";
+import { sendToken } from "../utils/send-token";
 
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
@@ -162,22 +162,21 @@ export const verifyingEmail = async (
     next: NextFunction
 ) => {
     try {
-//         const { otp, token } = req.body;
-//
-//         const newUser: any = jwt.verify(
-//             token,
-//             process.env.EMAIL_ACTIVATION_SECRET!
-//         );
-//
-//         if (newUser.otp !== otp) {
-//             return res.status(400).json({
-//                 success: false,
-//                 message: "OTP is not correct or expired!",
-//             });
-//         }
-//
-//         const { name, email, userId } = newUser.user;
-        const { name, email, userId } = req.body;
+        const { otp, token } = req.body;
+
+        const newUser: any = jwt.verify(
+            token,
+            process.env.EMAIL_ACTIVATION_SECRET!
+        );
+
+        if (newUser.otp !== otp) {
+            return res.status(400).json({
+                success: false,
+                message: "OTP is not correct or expired!",
+            });
+        }
+
+        const { name, email, userId } = newUser.user;
 
         const user = await prisma.user.findUnique({
             where: {
@@ -194,22 +193,13 @@ export const verifyingEmail = async (
                     email: email,
                 },
             });
-            res.status(201).json({
-                success: true,
-                user: updatedUser,
-            })
-        //     await sendToken(updatedUser, res);
-        } else {
-            res.status(400).json({
-                success: false,
-                message: "User already exists!",
-            })
+            await sendToken(updatedUser, res);
         }
     } catch (error) {
         console.log(error);
         res.status(400).json({
             success: false,
-            message: "Your otp is expired!",
+            message: "Your OTP is expired!",
         });
     }
 };
