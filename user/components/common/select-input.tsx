@@ -65,7 +65,7 @@ const styles = StyleSheet.create({
         marginBottom: 5,
         height: windowHeight(30),
         color: color.secondaryFont,
-        paddingHorizontal: 10,
+        paddingHorizontal: 5,
     },
     warning: {
         color: color.red,
