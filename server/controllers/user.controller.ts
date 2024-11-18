@@ -67,12 +67,7 @@ export const verifyOtp = async (
                 },
             });
             if (isUserExist) {
-                res.status(200).json({
-                    success: true,
-                    message: "OTP verified successfully!",
-                    user: isUserExist,
-                });
-                // await sendToken(isUserExist, res);
+                await sendToken(isUserExist, res);
             } else {
                 // create account
                 const user = await prisma.user.create({
@@ -204,20 +199,20 @@ export const verifyingEmail = async (
     }
 };
 
-// // get logged in user data
-// export const getLoggedInUserData = async (req: any, res: Response) => {
-//     try {
-//         const user = req.user;
-//
-//         res.status(201).json({
-//             success: true,
-//             user,
-//         });
-//     } catch (error) {
-//         console.log(error);
-//     }
-// };
-//
+// get logged in user data
+export const getLoggedInUserData = async (req: any, res: Response) => {
+    try {
+        const user = req.user;
+
+        res.status(201).json({
+            success: true,
+            user,
+        });
+    } catch (error) {
+        console.log(error);
+    }
+};
+
 // // getting user rides
 // export const getAllRides = async (req: any, res: Response) => {
 //     const rides = await prisma.rides.findMany({
