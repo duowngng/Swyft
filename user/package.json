@@ -9,6 +9,7 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "@react-native-async-storage/async-storage": "1.23.1",
     "@react-native-clipboard/clipboard": "^1.14.1",
     "@react-native-picker/picker": "^2.9.0",
     "axios": "^1.7.2",
@@ -36,11 +37,11 @@
     "react-native-screens": "~4.0.0",
     "react-native-svg": "15.8.0",
     "react-native-swiper": "^1.6.0",
-    "react-native-toast-notifications": "^3.4.0",
-    "@react-native-async-storage/async-storage": "1.23.1"
+    "react-native-toast-notifications": "^3.4.0"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
+    "@types/lodash": "^4.17.13",
     "@types/react": "~18.3.12",
     "@types/react-native": "^0.73.0",
     "typescript": "^5.1.3"
