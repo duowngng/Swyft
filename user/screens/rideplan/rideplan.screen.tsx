@@ -8,13 +8,13 @@ import {
     Pressable,
     Image,
     TextInput,
-    FlatList, ScrollView,
+    FlatList,
+    ScrollView,
 } from "react-native";
 import styles from "./styles";
 import { external } from "@/styles/external.style";
 import { useCallback, useEffect, useRef, useState } from "react";
-import MapView, { Marker } from "react-native-maps";
-import MapViewDirections from "react-native-maps-directions";
+import MapView, { Marker, Polyline } from "react-native-maps";
 import { windowHeight, windowWidth } from "@/themes/app.constant";
 import {LeftArrow} from "@/assets/icons/leftarrows";
 import {router} from "expo-router";
@@ -28,6 +28,9 @@ import axios from "axios";
 import _ from "lodash";
 import * as Location from "expo-location";
 import {Toast} from "react-native-toast-notifications";
+import { decode } from '@here/flexpolyline';
+import moment from "moment";
+import Button from "@/components/common/button";
 
 export default function RidePlanScreen() {
     const [places, setPlaces] = useState<any>([]);
@@ -43,11 +46,14 @@ export default function RidePlanScreen() {
     const [distance, setDistance] = useState<any>(null);
     const [locationSelected, setLocationSelected] = useState(false);
     const [selectedVehicle, setSelectedVehicle] = useState("Car");
-    const [travelTimes, setTravelTimes] = useState({
+    const [travelTime, setTravelTime] = useState({
         car: null,
         scooter: null,
     });
     const [keyboardAvoidingHeight, setKeyboardAvoidingHeight] = useState(false);
+    const [routeCoordinates, setRouteCoordinates] = useState<any>(null);
+    const [routeSummary, setRouteSummary] = useState(null);
+    const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
         (async () => {
@@ -77,7 +83,6 @@ export default function RidePlanScreen() {
     }, []);
 
     const fetchPlaces = async (input: string) => {
-        console.log(input)
         try {
             const response = await axios.get(
                 `https://autocomplete.search.hereapi.com/v1/autocomplete`,
@@ -89,7 +94,6 @@ export default function RidePlanScreen() {
                     },
                 }
             );
-            console.log(response);
 
             const mappedPlaces = response.data.items.map((item: { id: any; address: { label: any; }; }) => ({
                 id: item.id,
@@ -117,9 +121,9 @@ export default function RidePlanScreen() {
         setQuery(text);
     };
 
-    const fetchTravelTimes = async (origin: any, destination: any) => {
+    const fetchTravelTime = async (origin: any, destination: any) => {
         const modes = ["car", "scooter"];
-        let travelTimes = {
+        let travelTime = {
             car: null,
             scooter: null,
         } as any;
@@ -145,16 +149,72 @@ export default function RidePlanScreen() {
 
                 if (response.data.routes.length > 0) {
                     const route = response.data.routes[0];
-                    travelTimes[mode] = `${Math.round(route.sections[0].summary.duration / 60)} mins`;
+                    travelTime[mode] = `${Math.round(route.sections[0].summary.duration / 60)} mins`;
                 }
             } catch (error: any) {
                 console.error(`Error fetching ${mode} travel time:`, error.message);
             }
         }
 
-        setTravelTimes(travelTimes);
+        setTravelTime(travelTime);
     };
 
+    const fetchRoute = async (origin: any, destination: any) => {
+        setIsLoading(true);
+
+        const from_lat = origin.latitude;
+        const from_long = origin.longitude;
+        const to_lat = destination.latitude;
+        const to_long = destination.longitude;
+
+        try {
+            const params = {
+                transportMode: 'car',
+                origin: `${from_lat},${from_long}`,
+                destination: `${to_lat},${to_long}`,
+                return: 'polyline,travelSummary',
+                apiKey: process.env.EXPO_PUBLIC_HERE_API_KEY,
+            };
+
+            const response = await axios.get(
+                'https://router.hereapi.com/v8/routes',
+                { params }
+            );
+
+            if (response.data.routes && response.data.routes.length > 0) {
+                const polyline = response.data.routes[0].sections[0].polyline;
+
+                if (polyline) {
+                    const coordinates = decode(polyline);
+                    setRouteCoordinates(coordinates);
+                } else {
+                    console.error('Polyline data is missing or incorrect');
+                }
+
+                const routeSummary = response.data.routes[0].sections[0].travelSummary;
+                setRouteSummary(routeSummary);
+
+                const length = routeSummary.length;
+
+                let distanceObject = {};
+                distanceObject = (length < 1000) ? { length: length, unit: 'm' } : { length: (length/1000).toFixed(2), unit: 'km' };
+
+                setDistance(distanceObject);
+            } else {
+                console.error('No route data found in the response');
+            }
+        } catch (error) {
+            console.error("Error fetching route:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const getEstimatedArrivalTime = (travelTime: any) => {
+        const now = moment();
+        const arrivalTime = now.add(travelTime, "seconds");
+        return arrivalTime.format("hh:mm A");
+    };
 
     const handlePlaceSelect = async (placeId: any) => {
         try {
@@ -186,13 +246,13 @@ export default function RidePlanScreen() {
             setKeyboardAvoidingHeight(false);
 
             if (currentLocation) {
-                await fetchTravelTimes(currentLocation, selectedDestination);
+                await fetchTravelTime(currentLocation, selectedDestination);
+                await fetchRoute(currentLocation, selectedDestination);
             }
         } catch (error: any) {
             console.error("Error fetching place details:", error.message);
         }
     };
-
 
     return (
         <KeyboardAvoidingView
@@ -210,14 +270,14 @@ export default function RidePlanScreen() {
                     >
                         {marker && <Marker coordinate={marker} />}
                         {currentLocation && <Marker coordinate={currentLocation} />}
-                        {currentLocation && marker && (
-                            <MapViewDirections
-                                origin={currentLocation}
-                                destination={marker}
-                                apikey={process.env.EXPO_PUBLIC_GOOGLE_CLOUD_API_KEY!}
+                        {routeCoordinates && (
+                            <Polyline
+                                coordinates={routeCoordinates.polyline.map(([latitude, longitude]) => ({
+                                    latitude,
+                                    longitude,
+                                }))}
                                 strokeWidth={4}
                                 strokeColor="blue"
-                                onError={(error) => console.log(error)}
                             />
                         )}
                     </MapView>
@@ -286,11 +346,36 @@ export default function RidePlanScreen() {
                                                     Swyft Car
                                                 </Text>
                                                 <Text style={{ fontSize: 16 }}>
-                                                    20 minutes drop off
+                                                    {getEstimatedArrivalTime(travelTime.car)}{" "}
+                                                    drop off
                                                 </Text>
                                             </View>
+                                            <Text
+                                                style={{
+                                                    fontSize: windowWidth(20),
+                                                    fontWeight: "600",
+                                                }}
+                                            >
+                                                VND{" "}
+                                                {(
+                                                    distance.length * 9000
+                                                ).toFixed(2)}
+                                            </Text>
                                         </View>
                                     </Pressable>
+                                    <View
+                                        style={{
+                                            paddingHorizontal: windowWidth(10),
+                                            marginTop: windowHeight(15),
+                                        }}
+                                    >
+                                        <Button
+                                            backgroundColor={"#000"}
+                                            textColor="#fff"
+                                            title={`Confirm Booking`}
+                                            // onPress={() => handleOrder()}
+                                        />
+                                    </View>
                                 </View>
                             </ScrollView>
                         ) : (
@@ -416,7 +501,7 @@ export default function RidePlanScreen() {
                                             onPress={() => handlePlaceSelect(item.id)}
                                         >
                                             <PickUpLocation />
-                                            <Text style={{ padding: 10, fontSize: 16 }}>
+                                            <Text style={{ padding: 5, fontSize: 16 }}>
                                                 {item.label}
                                             </Text>
                                         </Pressable>
