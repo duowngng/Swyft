@@ -14,12 +14,12 @@ export default function LocationSearchBar() {
         { backgroundColor: color.lightGray },
         { flexDirection: "row" },
         { justifyContent: "space-around" },
-        { paddingHorizontal: windowWidth(18) },
-        { paddingRight: windowWidth(40) },
+        { paddingHorizontal: windowWidth(0) },
+        { paddingRight: windowWidth(140) },
       ]}
       onPress={() => router.push("/(routes)/rideplan")}
     >
-      <View style={{ flexDirection: "row", paddingLeft: windowWidth(30) }}>
+      <View style={{ flexDirection: "row", paddingLeft: windowWidth(20) }}>
         <Search />
         <Text
           style={[
