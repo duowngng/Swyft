@@ -1,4 +1,4 @@
-generator client {
+ generator client {
   provider = "prisma-client-js"
 }
 
@@ -36,7 +36,6 @@ model driver {
   registration_date   String
   driving_license     String
   vehicle_color       String?
-  rate                String
   notificationToken   String?
   ratings             Float       @default(0)
   totalEarning        Float       @default(0)
