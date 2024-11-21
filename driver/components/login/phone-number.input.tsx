@@ -4,56 +4,77 @@ import { windowHeight, windowWidth } from "@/themes/app.constant";
 import { external } from "@/styles/external.style";
 import styles from "@/screens/login/styles";
 import color from "@/themes/app.colors";
+import { countryItems } from "@/configs/country-list";
+import SelectInput from "../common/select-input";
+import React from "react";
 
-export default function PhoneNumberInput({ width }: any) {
-  return (
-    <View>
-      <Text
-        style={[commonStyles.mediumTextBlack, { marginTop: windowHeight(8) }]}
-      >
-        Phone Number
-      </Text>
-      <View
-        style={[
-          external.fd_row,
-          external.ai_center,
-          external.mt_5,
-          { flexDirection: "row" },
-        ]}
-      >
-        <View
-          style={[
-            styles.countryCodeContainer,
-            {
-              borderColor: color.border,
-            },
-          ]}
-        >
-          <TextInput
-            style={[commonStyles.regularText]}
-            placeholderTextColor={color.subtitle}
-            placeholder="+880"
-            keyboardType="numeric"
-          />
+interface Props {
+    width?: number;
+    phoneNumber: string;
+    setPhoneNumber: (phoneNumber: string) => void;
+    countryCode: string;
+    setCountryCode: (countryCode: string) => void;
+}
+
+export default function PhoneNumberInput({
+                                             width,
+                                             phoneNumber,
+                                             setPhoneNumber,
+                                             countryCode,
+                                             setCountryCode,
+                                         }: Props) {
+    return (
+        <View>
+            <Text
+                style={[commonStyles.mediumTextBlack, { marginTop: windowHeight(8) }]}
+            >
+                Phone Number
+            </Text>
+            <View
+                style={[
+                    external.fd_row,
+                    external.ai_center,
+                    external.mt_5,
+                    { flexDirection: "row" },
+                ]}
+            >
+                <View
+                    style={[
+                        styles.countryCodeContainer,
+                        {
+                            borderColor: color.border,
+                        },
+                    ]}
+                >
+                    <SelectInput
+                        placeholder="Select your country"
+                        value={countryCode}
+                        onValueChange={(text) => setCountryCode(text)}
+                        showWarning={false}
+                        warning={"Please choose your country code!"}
+                        items={countryItems}
+                    />
+                </View>
+                <View
+                    style={[
+                        styles.phoneNumberInput,
+                        {
+                            width: width || windowWidth(346),
+                            borderColor: color.border,
+                        },
+                    ]}
+                >
+                    <TextInput
+                        style={[commonStyles.regularText]}
+                        placeholderTextColor={color.subtitle}
+                        placeholder={"Enter your number"}
+                        keyboardType="numeric"
+                        value={phoneNumber}
+                        onChangeText={setPhoneNumber}
+                        maxLength={10}
+                    />
+                </View>
+            </View>
         </View>
-        <View
-          style={[
-            styles.phoneNumberInput,
-            {
-              width: width || windowWidth(326),
-              borderColor: color.border,
-            },
-          ]}
-        >
-          <TextInput
-            style={[commonStyles.regularText]}
-            placeholderTextColor={color.subtitle}
-            placeholder={"Enter your number"}
-            keyboardType="numeric"
-            maxLength={10}
-          />
-        </View>
-      </View>
-    </View>
-  );
+    );
 }
