@@ -7,7 +7,7 @@ import color from "@/themes/app.colors";
 import RNPickerSelect from "react-native-picker-select";
 
 interface InputProps {
-    title: string;
+    title?: string;
     placeholder: string;
     items: { label: string; value: string }[];
     value?: string;
@@ -17,6 +17,8 @@ interface InputProps {
 }
 
 export default function SelectInput({
+                                        title,
+                                        placeholder,
                                         items,
                                         value,
                                         warning,
@@ -26,11 +28,13 @@ export default function SelectInput({
     const { colors } = useTheme();
     return (
         <View>
+            {title && (
+                <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
+            )}
             <RNPickerSelect
                 onValueChange={onValueChange}
                 items={items}
                 placeholder={{ label: value }}
-                useNativeAndroidPickerStyle={false}
                 style={{
                     inputIOS: {
                         ...styles.input,
@@ -43,7 +47,6 @@ export default function SelectInput({
                         backgroundColor: color.lightGray,
                         borderColor: colors.border,
                         height: windowHeight(39),
-                        color: "#000",
                     },
                 }}
                 value={value}

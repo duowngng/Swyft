@@ -197,7 +197,7 @@ export default function RidePlanScreen() {
                 const length = routeSummary.length;
 
                 let distanceObject = {};
-                distanceObject = (length < 1000) ? { length: length, unit: 'm' } : { length: (length/1000).toFixed(2), unit: 'km' };
+                distanceObject = length;
 
                 setDistance(distanceObject);
             } else {
@@ -272,7 +272,7 @@ export default function RidePlanScreen() {
                         {currentLocation && <Marker coordinate={currentLocation} />}
                         {routeCoordinates && (
                             <Polyline
-                                coordinates={routeCoordinates.polyline.map(([latitude, longitude]) => ({
+                                coordinates={routeCoordinates.polyline.map(([latitude, longitude]: [any, any]) => ({
                                     latitude,
                                     longitude,
                                 }))}
@@ -358,7 +358,7 @@ export default function RidePlanScreen() {
                                             >
                                                 VND{" "}
                                                 {(
-                                                    distance.length * 9000
+                                                    (distance.length/1000) * 9000
                                                 ).toFixed(2)}
                                             </Text>
                                         </View>

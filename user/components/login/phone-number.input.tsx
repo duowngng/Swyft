@@ -5,7 +5,6 @@ import { external } from "@/styles/external.style";
 import styles from "@/screens/login/styles";
 import color from "@/themes/app.colors";
 import SelectInput from "../common/select-input";
-import { useState } from "react";
 import { countryItems } from "@/configs/country-list";
 
 interface Props {
@@ -47,7 +46,7 @@ export default function PhoneNumberInput({
                     ]}
                 >
                     <SelectInput
-                        title="+880"
+                        title="+84"
                         placeholder="Select your country"
                         value={countryCode}
                         onValueChange={(text) => setCountryCode(text)}

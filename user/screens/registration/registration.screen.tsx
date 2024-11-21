@@ -80,7 +80,7 @@ export default function RegistrationScreen() {
                         <View style={styles.space}>
                             <TitleView
                                 title={"Create your account"}
-                                subTitle="Explore your life by joining Ride Wave"
+                                subTitle="Explore your life by joining Swyft"
                             />
                             <Input
                                 title="Name"
