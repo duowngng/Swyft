@@ -46,7 +46,7 @@ export default function PhoneNumberVerificationScreen() {
                         });
                     })
                     .catch((error) => {
-                        Toast.show("Your otp is incorrect or expired!", {
+                        Toast.show("Your OTP is incorrect or expired!", {
                             placement: "bottom",
                             type: "danger",
                         });

@@ -40,6 +40,7 @@ export default function SignupScreen() {
             setShowWarning(true);
         } else {
             setShowWarning(false);
+            console.log(formData);
             const phoneNumberData = countryNameItems.find(
                 (i: any) => i.label === formData.country
             );

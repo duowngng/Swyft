@@ -46,7 +46,7 @@ export default function DocumentVerificationScreen() {
 
         await axios
             .post(`${process.env.EXPO_PUBLIC_SERVER_URI}/driver/send-otp`, {
-                phoneNumber: `+${driverData.phoneNumber}`,
+                phoneNumber: `${driverData.phoneNumber}`,
             })
             .then((res) => {
                 router.push({
@@ -55,7 +55,23 @@ export default function DocumentVerificationScreen() {
                 });
                 setLoading(false);
             })
-            .catch((error) => {
+            .catch(function (error) {
+                if (error.response) {
+                    // The request was made and the server responded with a status code
+                    // that falls out of the range of 2xx
+                    console.log(error.response.data);
+                    console.log(error.response.status);
+                    console.log(error.response.headers);
+                } else if (error.request) {
+                    // The request was made but no response was received
+                    // `error.request` is an instance of XMLHttpRequest in the browser and an instance of
+                    // http.ClientRequest in node.js
+                    console.log(error.request);
+                } else {
+                    // Something happened in setting up the request that triggered an Error
+                    console.log('Error', error.message);
+                }
+                console.log(error.config);
                 setLoading(false);
                 Toast.show(error.message, {
                     placement: "bottom",
@@ -76,7 +92,7 @@ export default function DocumentVerificationScreen() {
                         textAlign: "center",
                     }}
                 >
-                    Ride Wave
+                    Swyft
                 </Text>
                 <View style={{ padding: windowWidth(20) }}>
                     <ProgressBar fill={2} />
@@ -86,7 +102,7 @@ export default function DocumentVerificationScreen() {
                         <View style={styles.space}>
                             <TitleView
                                 title={"Vehicle Registration"}
-                                subTitle={"Explore your life by joining Ride Wave"}
+                                subTitle={"Explore your life by joining Swyft"}
                             />
                             <SelectInput
                                 title="Vehicle Type"

@@ -157,6 +157,7 @@ export default function RidePlanScreen() {
         }
 
         setTravelTime(travelTime);
+        console.log("Travel time:", travelTime);
     };
 
     const fetchRoute = async (origin: any, destination: any) => {
@@ -181,6 +182,8 @@ export default function RidePlanScreen() {
                 { params }
             );
 
+            console.log('Response data:', response);
+
             if (response.data.routes && response.data.routes.length > 0) {
                 const polyline = response.data.routes[0].sections[0].polyline;
 
@@ -193,11 +196,15 @@ export default function RidePlanScreen() {
 
                 const routeSummary = response.data.routes[0].sections[0].travelSummary;
                 setRouteSummary(routeSummary);
+                console.log('Route summary:', routeSummary);
 
                 const length = routeSummary.length;
+                const duration = routeSummary.duration;
+                console.log('Route length:', length);
+                console.log('Route duration:', duration);
 
                 let distanceObject = {};
-                distanceObject = length;
+                distanceObject = { length: length};
 
                 setDistance(distanceObject);
             } else {
@@ -358,7 +365,7 @@ export default function RidePlanScreen() {
                                             >
                                                 VND{" "}
                                                 {(
-                                                    (distance.length/1000) * 9000
+                                                    distance ? (distance.length / 1000) * 9000 : 0
                                                 ).toFixed(2)}
                                             </Text>
                                         </View>
