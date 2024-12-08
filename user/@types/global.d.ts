@@ -14,6 +14,6 @@ type UserType = {
   email: string;
   ratings?: Number;
   totalRides?: Number;
-  cratedAt: Date;
+  createdAt: Date;
   updatedAt: Date;
 };
