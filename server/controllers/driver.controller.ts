@@ -53,6 +53,7 @@ export const verifyPhoneOtpForLogin = async (
 ) => {
     try {
         const { phoneNumber, otp } = req.body;
+        console.log("phone: ", phoneNumber, "otp: ", otp);
 
         try {
             await client.verify.v2

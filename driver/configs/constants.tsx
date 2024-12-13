@@ -1,4 +1,7 @@
+import { Driving, SmallCard, SmartCar, Wallet } from "@/utils/icons";
 import Images from "../utils/images";
+import color from "@/themes/app.colors";
+import React from "react";
 
 export const slides = [
   {
@@ -18,6 +21,33 @@ export const slides = [
     image: Images.bookRide,
     text: "Enjoy Your Trip",
     description:
-      "Now enjoy your trip, pay your driver after reaching the destination!",
+        "Now enjoy your trip, pay your driver after reaching the destination!",
+  },
+];
+
+export const rideData = [
+  { id: "1", totalEarning: "2200", title: "Total Earning" },
+  { id: "2", totalRides: "12", title: "Complete Ride" },
+  { id: "3", pendingRides: "1", title: "Pending Ride" },
+  { id: "4", cancelRides: "4", title: "Cancel Ride" },
+];
+
+export const rideIcons = [
+  <Wallet colors={color.primary} />,
+  <SmartCar />,
+  <SmallCard color={color.primary} />,
+  <Driving color={color.primary} />,
+];
+
+export const recentRidesData: recentRidesTypes[] = [
+  {
+    id: "1",
+    user: "Nam",
+    rating: "5",
+    earning: "60000",
+    pickup: "Minh Khai, Vĩnh Tuy, Hai Bà Trưng, Hanoi",
+    dropoff: "Lý Thái Tổ, Hoàn Kiếm, Hanoi",
+    time: "14 Oct 01:34 pm",
+    distance: "5.4 km",
   },
 ];

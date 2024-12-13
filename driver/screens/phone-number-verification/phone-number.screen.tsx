@@ -30,7 +30,7 @@ export default function PhoneNumberVerificationScreen() {
                 const otpNumbers = `${otp}`;
                 await axios
                     .post(`${process.env.EXPO_PUBLIC_SERVER_URI}/driver/verify-otp`, {
-                        phone_number: driver.phone_number,
+                        phoneNumber: driver.phoneNumber,
                         otp: otpNumbers,
                         ...driver,
                     })
@@ -56,7 +56,7 @@ export default function PhoneNumberVerificationScreen() {
                 const otpNumbers = `${otp}`;
                 await axios
                     .post(`${process.env.EXPO_PUBLIC_SERVER_URI}/driver/login`, {
-                        phone_number: driver.phone_number,
+                        phoneNumber: driver.phoneNumber,
                         otp: otpNumbers,
                     })
                     .then(async (res) => {
