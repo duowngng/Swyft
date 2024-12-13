@@ -9,30 +9,34 @@ import {
     Image,
     TextInput,
     FlatList,
-    ScrollView,
+    ScrollView, ActivityIndicator,
 } from "react-native";
 import styles from "./styles";
 import { external } from "@/styles/external.style";
 import { useCallback, useEffect, useRef, useState } from "react";
 import MapView, { Marker, Polyline } from "react-native-maps";
 import { windowHeight, windowWidth } from "@/themes/app.constant";
-import {LeftArrow} from "@/assets/icons/leftarrows";
-import {router} from "expo-router";
-import {Clock} from "@/assets/icons/clock";
+import { LeftArrow } from "@/assets/icons/leftarrows";
+import { router } from "expo-router";
+import { Clock } from "@/assets/icons/clock";
 import DownArrow from "@/assets/icons/downArrow";
 import color from "@/themes/app.colors";
-import {PickLocation} from "@/assets/icons/pickLocation";
+import { PickLocation } from "@/assets/icons/pickLocation";
 import PlaceHolder from "@/assets/icons/placeHolder";
-import {PickUpLocation} from "@/assets/icons/pickUpLocation";
+import { PickUpLocation } from "@/assets/icons/pickUpLocation";
 import axios from "axios";
 import _ from "lodash";
 import * as Location from "expo-location";
-import {Toast} from "react-native-toast-notifications";
+import { Toast } from "react-native-toast-notifications";
 import { decode } from '@here/flexpolyline';
 import moment from "moment";
 import Button from "@/components/common/button";
+import { useGetUserData } from "@/hooks/useGetUserData";
 
 export default function RidePlanScreen() {
+    const { user } = useGetUserData();
+    const ws = useRef<any>(null);
+    const [wsConnected, setWsConnected] = useState(false);
     const [places, setPlaces] = useState<any>([]);
     const [query, setQuery] = useState("");
     const [region, setRegion] = useState<any>({
@@ -54,6 +58,9 @@ export default function RidePlanScreen() {
     const [routeCoordinates, setRouteCoordinates] = useState<any>(null);
     const [routeSummary, setRouteSummary] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [driverLists, setDriverLists] = useState([]);
+    const [selectedDriver, setSelectedDriver] = useState<DriverType>();
+    const [driverLoader, setDriverLoader] = useState(true);
 
     useEffect(() => {
         (async () => {
@@ -80,6 +87,36 @@ export default function RidePlanScreen() {
                 longitudeDelta: 0.0421,
             });
         })();
+    }, []);
+
+    const initializeWebSocket = () => {
+        ws.current = new WebSocket("ws://192.168.1.2:8080");
+        ws.current.onopen = () => {
+            console.log("Connected to websocket server");
+            setWsConnected(true);
+        };
+
+        ws.current.onerror = (e: any) => {
+            console.log("WebSocket error:", e.message);
+        };
+
+        ws.current.onclose = (e: any) => {
+            console.log("WebSocket closed:", e.code, e.reason);
+            setWsConnected(false);
+            // Attempt to reconnect after a delay
+            setTimeout(() => {
+                initializeWebSocket();
+            }, 5000);
+        };
+    };
+
+    useEffect(() => {
+        initializeWebSocket();
+        return () => {
+            if (ws.current) {
+                ws.current.close();
+            }
+        };
     }, []);
 
     const fetchPlaces = async (input: string) => {
@@ -149,7 +186,7 @@ export default function RidePlanScreen() {
 
                 if (response.data.routes.length > 0) {
                     const route = response.data.routes[0];
-                    travelTime[mode] = `${Math.round(route.sections[0].summary.duration / 60)} mins`;
+                    travelTime[mode] = route.sections[0].summary.duration;
                 }
             } catch (error: any) {
                 console.error(`Error fetching ${mode} travel time:`, error.message);
@@ -220,7 +257,60 @@ export default function RidePlanScreen() {
     const getEstimatedArrivalTime = (travelTime: any) => {
         const now = moment();
         const arrivalTime = now.add(travelTime, "seconds");
+        console.log(travelTime, arrivalTime);
         return arrivalTime.format("hh:mm A");
+    };
+
+    const getNearbyDrivers = () => {
+        ws.current.onmessage = async (e: any) => {
+            try {
+                const message = JSON.parse(e.data);
+                if (message.type === "nearbyDrivers") {
+                    await getDriversData(message.drivers);
+                }
+            } catch (error) {
+                console.log(error, "Error parsing websocket");
+            }
+        };
+    };
+
+    const getDriversData = async (drivers: any) => {
+        // Extract driver IDs from the drivers array
+        const driverIds = drivers.map((driver: any) => driver.id).join(",");
+        console.log("Driver IDs:", driverIds);
+        const response = await axios.get(
+            `${process.env.EXPO_PUBLIC_SERVER_URI}/driver/get-drivers-data`,
+            {
+                params: { ids: driverIds },
+            }
+        );
+
+        const driverData = response.data;
+        setDriverLists(driverData);
+        setDriverLoader(false);
+    };
+
+    const requestNearbyDrivers = () => {
+        console.log(wsConnected);
+        if (currentLocation && wsConnected) {
+            ws.current.send(
+                JSON.stringify({
+                    type: "requestRide",
+                    role: "user",
+                    latitude: currentLocation.latitude,
+                    longitude: currentLocation.longitude,
+                })
+            );
+            getNearbyDrivers();
+        }
+    };
+
+    const handleOrder = async () => {
+        const data = {
+            driver: selectedDriver || driverLists[0],
+            user,
+            currentLocation,
+        };
     };
 
     const handlePlaceSelect = async (placeId: any) => {
@@ -248,7 +338,7 @@ export default function RidePlanScreen() {
                 longitude: lng,
             });
             setPlaces([]);
-            // requestNearbyDrivers();
+            requestNearbyDrivers();
             setLocationSelected(true);
             setKeyboardAvoidingHeight(false);
 
@@ -294,97 +384,123 @@ export default function RidePlanScreen() {
                 <View style={[styles.container]}>
                     {
                         locationSelected ? (
-                            <ScrollView
-                                style={{
-                                    paddingBottom: windowHeight(20),
-                                    height: windowHeight(280),
-                                }}
-                            >
-                                <View
-                                    style={{
-                                        borderBottomWidth: 1,
-                                        borderBottomColor: "#b5b5b5",
-                                        paddingBottom: windowHeight(10),
-                                        flexDirection: "row",
-                                    }}
-                                >
-                                    <Pressable onPress={() => setLocationSelected(false)}>
-                                        <LeftArrow />
-                                    </Pressable>
-                                    <Text
-                                        style={{
-                                            margin: "auto",
-                                            fontSize: 20,
-                                            fontWeight: "600",
-                                        }}
-                                    >
-                                        Gathering options
-                                    </Text>
-                                </View>
-                                <View style={{ padding: windowWidth(10) }}>
-                                    <Pressable
-                                        style={{
-                                            width: windowWidth(420),
-                                            borderWidth:
-                                                selectedVehicle === "car" ? 2 : 0,
-                                            borderRadius: 10,
-                                            padding: 10,
-                                            marginVertical: 5,
-                                        }}
-                                        onPress={() => {
-                                            setSelectedVehicle("car");
-                                        }}
-                                    >
-                                        <View style={{ margin: "auto" }}>
-                                            <Image
-                                                source={require("@/assets/images/vehicles/car.png")}
-                                                style={{ width: 90, height: 80 }}
-                                            />
-                                        </View>
+                                <>
+                                    {driverLoader ? (
                                         <View
                                             style={{
-                                                flexDirection: "row",
+                                                flex: 1,
                                                 alignItems: "center",
-                                                justifyContent: "space-between",
+                                                justifyContent: "center",
+                                                height: 400,
                                             }}
                                         >
-                                            <View>
-                                                <Text style={{ fontSize: 20, fontWeight: "600" }}>
-                                                    Swyft Car
-                                                </Text>
-                                                <Text style={{ fontSize: 16 }}>
-                                                    {getEstimatedArrivalTime(travelTime.car)}{" "}
-                                                    drop off
-                                                </Text>
-                                            </View>
-                                            <Text
+                                            <ActivityIndicator size={"large"} />
+                                        </View>
+                                    ) : (
+                                        <ScrollView
+                                            style={{
+                                                paddingBottom: windowHeight(20),
+                                                height: windowHeight(280),
+                                            }}
+                                        >
+                                            <View
                                                 style={{
-                                                    fontSize: windowWidth(20),
-                                                    fontWeight: "600",
+                                                    borderBottomWidth: 1,
+                                                    borderBottomColor: "#b5b5b5",
+                                                    paddingBottom: windowHeight(10),
+                                                    flexDirection: "row",
                                                 }}
                                             >
-                                                VND{" "}
-                                                {(
-                                                    distance ? (distance.length / 1000) * 9000 : 0
-                                                ).toFixed(2)}
-                                            </Text>
-                                        </View>
-                                    </Pressable>
-                                    <View
-                                        style={{
-                                            paddingHorizontal: windowWidth(10),
-                                            marginTop: windowHeight(15),
-                                        }}
-                                    >
-                                        <Button
-                                            backgroundColor={"#000"}
-                                            textColor="#fff"
-                                            title={`Confirm Booking`}
-                                            // onPress={() => handleOrder()}
-                                        />
-                                    </View>
-                                </View>
-                            </ScrollView>
+                                                <Pressable onPress={() => setLocationSelected(false)}>
+                                                    <LeftArrow />
+                                                </Pressable>
+                                                <Text
+                                                    style={{
+                                                        margin: "auto",
+                                                        fontSize: 20,
+                                                        fontWeight: "600",
+                                                    }}
+                                                >
+                                                    Gathering options
+                                                </Text>
+                                            </View>
+                                            <View style={{ padding: windowWidth(10) }}>
+                                                {
+                                                    driverLists?.map((driver: DriverType) => (
+                                                        <Pressable
+                                                            style={{
+                                                                width: windowWidth(420),
+                                                                borderWidth:
+                                                                    selectedVehicle === driver.vehicle_type ? 2 : 0,
+                                                                borderRadius: 10,
+                                                                padding: 10,
+                                                                marginVertical: 5,
+                                                            }}
+                                                            onPress={() => {
+                                                                setSelectedVehicle(driver.vehicle_type);
+                                                            }}
+                                                        >
+                                                            <View style={{ margin: "auto" }}>
+                                                                <Image
+                                                                    source={
+                                                                        driver?.vehicle_type === "Car"
+                                                                            ? require("@/assets/images/vehicles/car.png")
+                                                                            : driver?.vehicle_type === "Motorcycle"
+                                                                                ? require("@/assets/images/vehicles/bike.png")
+                                                                                : require("@/assets/images/vehicles/bike.png")
+                                                                    }
+                                                                    style={{ width: 90, height: 80 }}
+                                                                />
+                                                            </View>
+                                                            <View
+                                                                style={{
+                                                                    flexDirection: "row",
+                                                                    alignItems: "center",
+                                                                    justifyContent: "space-between",
+                                                                }}
+                                                            >
+                                                                <View>
+                                                                    <Text style={{ fontSize: 20, fontWeight: "600" }}>
+                                                                        Swyft {driver?.vehicle_type}
+                                                                    </Text>
+                                                                    <Text style={{ fontSize: 16 }}>
+                                                                        {getEstimatedArrivalTime(travelTime.car)}{" "}
+                                                                        drop off
+                                                                    </Text>
+                                                                </View>
+                                                                <Text
+                                                                    style={{
+                                                                        fontSize: windowWidth(20),
+                                                                        fontWeight: "600",
+                                                                    }}
+                                                                >
+                                                                    VND{" "}
+                                                                    {(
+                                                                        distance ? (distance.length / 1000) * 9000 : 0
+                                                                    ).toFixed(2)}
+                                                                </Text>
+                                                            </View>
+                                                        </Pressable>
+                                                    ))
+                                                }
+
+                                                <View
+                                                    style={{
+                                                        paddingHorizontal: windowWidth(10),
+                                                        marginTop: windowHeight(15),
+                                                    }}
+                                                >
+                                                    <Button
+                                                        backgroundColor={"#000"}
+                                                        textColor="#fff"
+                                                        title={`Confirm Booking`}
+                                                        onPress={() => handleOrder()}
+                                                    />
+                                                </View>
+                                            </View>
+                                        </ScrollView>
+                                    )}
+                                </>
                         ) : (
                             <>
                                 <View style={{ flexDirection: "row", alignItems: "center" }}>

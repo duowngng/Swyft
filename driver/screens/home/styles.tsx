@@ -78,6 +78,7 @@ const styles = StyleSheet.create({
     },
     verticaldot: {
         borderLeftWidth: 1,
+        height: windowHeight(15),
         marginHorizontal: 5,
     },
     pickup: {

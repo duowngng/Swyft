@@ -10,8 +10,6 @@ import { Gps, Location, Star } from "@/utils/icons";
 export default function RideCard({ item }: { item: any }) {
     const { colors } = useTheme();
 
-    console.log("item: ", item);
-
     return (
         <View
             style={[
@@ -86,7 +84,7 @@ const styles = StyleSheet.create({
     top: {
         flex: 1,
         marginBottom: windowHeight(1.5),
-        paddingHorizontal: windowWidth(3),
+        paddingHorizontal: windowWidth(10),
         borderRadius: 5,
         paddingVertical: windowHeight(5),
     },
@@ -146,7 +144,7 @@ const styles = StyleSheet.create({
     },
     bottom: {
         flex: 1,
-        paddingHorizontal: windowWidth(5),
+        paddingHorizontal: windowWidth(10),
         borderRadius: 5,
         paddingVertical: windowHeight(5),
     },
