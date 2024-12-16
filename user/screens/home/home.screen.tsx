@@ -7,9 +7,27 @@ import color from "@/themes/app.colors";
 import { useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
-
+import RideCard from "@/components/ride/ride.card";
 
 export default function HomeScreen() {
+    const [recentRides, setrecentRides] = useState([]);
+
+    const getRecentRides = async () => {
+        const accessToken = await AsyncStorage.getItem("accessToken");
+        const res = await axios.get(
+            `${process.env.EXPO_PUBLIC_SERVER_URI}/get-rides`,
+            {
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                },
+            }
+        );
+        setrecentRides(res.data.rides);
+    };
+
+    useEffect(() => {
+        getRecentRides();
+    }, []);
 
     return (
         <View style={[commonStyles.flexContainer, { backgroundColor: "#fff" }]}>
@@ -21,11 +39,32 @@ export default function HomeScreen() {
                             fontSize: 25,
                         }}
                     >
-                        Swyft
+                        Ride Wave
                     </Text>
                     <LocationSearchBar />
                 </View>
-                <View></View>
+                <View style={{ padding: 5 }}>
+                    <View
+                        style={[
+                            styles.rideContainer,
+                            { backgroundColor: color.whiteColor },
+                        ]}
+                    >
+                        <Text style={[styles.rideTitle, { color: color.regularText }]}>
+                            Recent Rides
+                        </Text>
+                        <ScrollView>
+                            {recentRides?.map((item: any, index: number) => (
+                                <RideCard item={item} key={index} />
+                            ))}
+                            {recentRides?.length === 0 && (
+                                <Text style={{ fontSize: 16 }}>
+                                    You don't have any ride history yet!
+                                </Text>
+                            )}
+                        </ScrollView>
+                    </View>
+                </View>
             </SafeAreaView>
         </View>
     );

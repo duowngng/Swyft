@@ -22,7 +22,7 @@ export default function RideCard({ item }: { item: any }) {
                     <View style={[styles.profile, { flexDirection: "row" }]}>
                         <Image source={Images.user} style={styles.userimage} />
                         <Text style={[styles.userName, { color: colors.text }]}>
-                            {item?.user}
+                            {item?.user?.name}
                         </Text>
                     </View>
                     <View style={styles.rate}>
@@ -31,15 +31,15 @@ export default function RideCard({ item }: { item: any }) {
                         <View
                             style={[styles.verticalBorder, { borderColor: colors.border }]}
                         />
-                        <Text style={styles.price}>VND {item.earning}</Text>
+                        <Text style={styles.price}>{item.charge} VND</Text>
                     </View>
                 </View>
                 <View style={[styles.alignment, { flexDirection: "row" }]}>
-                    <Text style={styles.timing}>{item.time}</Text>
+                    <Text style={styles.timing}>{item.createdAt.slice(0, 10)}</Text>
                     <View style={styles.rate}>
                         <Location color={colors.text} />
                         <Text style={[styles.distance, { color: colors.text }]}>
-                            {item.distance}
+                            {(item.distance / 1000).toFixed(2)}
                         </Text>
                     </View>
                 </View>
@@ -61,10 +61,10 @@ export default function RideCard({ item }: { item: any }) {
                     </View>
                     <View style={styles.rightView}>
                         <Text style={[styles.pickup, { color: colors.text }]}>
-                            {item.pickup}
+                            {item.currentLocationName}
                         </Text>
                         <Text style={[styles.drop, { color: colors.text }]}>
-                            {item.dropoff}
+                            {item.destinationLocationName}
                         </Text>
                     </View>
                 </View>

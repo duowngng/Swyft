@@ -1,23 +1,31 @@
-import {FlatList, Modal, Platform, Text, TouchableOpacity, View,} from "react-native";
-import React, {useEffect, useRef, useState} from "react";
+import {
+    View,
+    Text,
+    FlatList,
+    Modal,
+    TouchableOpacity,
+    Platform,
+    ScrollView,
+} from "react-native";
+import React, { useEffect, useRef, useState } from "react";
 import Header from "@/components/common/header";
-import {recentRidesData, rideData} from "@/configs/constants";
-import {useTheme} from "@react-navigation/native";
+import { recentRidesData, rideData } from "@/configs/constants";
+import { useTheme } from "@react-navigation/native";
 import RenderRideItem from "@/components/ride/render.ride.item";
-import {external} from "@/styles/external.style";
+import { external } from "@/styles/external.style";
 import styles from "./styles";
 import RideCard from "@/components/ride/ride.card";
 import MapView, { Marker, Polyline } from "react-native-maps";
 import { decode } from '@here/flexpolyline';
-import {windowHeight, windowWidth} from "@/themes/app.constant";
-import {Gps, Location} from "@/utils/icons";
+import { windowHeight, windowWidth } from "@/themes/app.constant";
+import { Gps, Location } from "@/utils/icons";
 import color from "@/themes/app.colors";
 import Button from "@/components/common/button";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as GeoLocation from "expo-location";
-import {Toast} from "react-native-toast-notifications";
-import {useGetDriverData} from "@/hooks/useGetDriverData";
+import { Toast } from "react-native-toast-notifications";
+import { useGetDriverData } from "@/hooks/useGetDriverData";
 import Constants from "expo-constants";
 import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
@@ -44,6 +52,7 @@ export default function HomeScreen() {
     const [marker, setMarker] = useState<any>(null);
     const [currentLocation, setCurrentLocation] = useState<any>(null);
     const [lastLocation, setLastLocation] = useState<any>(null);
+    const [recentRides, setRecentRides] = useState([]);
     const ws = new WebSocket("ws://192.168.1.2:8080");
 
     const { colors } = useTheme();
@@ -58,7 +67,6 @@ export default function HomeScreen() {
 
     useEffect(() => {
         notificationListener.current = Notifications.addNotificationReceivedListener((notification) => {
-            console.log('Notification received:', notification.request.content.data);
             try {
                 const orderData = notification.request.content.data.orderData;
 
@@ -267,6 +275,23 @@ export default function HomeScreen() {
         })();
     }, []);
 
+    const getRecentRides = async () => {
+        const accessToken = await AsyncStorage.getItem("accessToken");
+        const res = await axios.get(
+            `${process.env.EXPO_PUBLIC_SERVER_URI}/driver/get-rides`,
+            {
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                },
+            }
+        );
+        setRecentRides(res.data.rides);
+    };
+
+    useEffect(() => {
+        getRecentRides();
+    }, []);
+
     const handleClose = () => {
         setIsModalVisible(false);
     };
@@ -352,7 +377,7 @@ export default function HomeScreen() {
                 driver,
                 distance,
                 routeCoordinates,
-                // rideData: response.data.newRide,
+                rideData: response.data.newRide,
             };
             console.log("Navigating to ride details with data:", rideData);
             router.push({
@@ -382,12 +407,19 @@ export default function HomeScreen() {
                     >
                         Recent Rides
                     </Text>
-                    <FlatList
-                        data={recentRidesData}
-                        renderItem={({ item }) =>
-                            <RideCard item={item} />
-                        }
-                    />
+                    <ScrollView
+                        style={{
+                            paddingBottom: windowHeight(20),
+                            height: windowHeight(280),
+                        }}
+                    >
+                        {recentRides?.map((item: any, index: number) => (
+                            <RideCard item={item} key={index} />
+                        ))}
+                        {recentRides?.length === 0 && (
+                            <Text>You didn't take any ride yet!</Text>
+                        )}
+                    </ScrollView>
                 </View>
             </View>
             <Modal
@@ -453,7 +485,7 @@ export default function HomeScreen() {
                                     fontSize: windowHeight(14),
                                 }}
                             >
-                                Price: {(distance ? (distance / 1000) * 9000 : 0).toFixed(2)} VND
+                                Price: {(distance ? (distance / 1000) * 9000 : 0)} VND
                             </Text>
                             <View
                                 style={{

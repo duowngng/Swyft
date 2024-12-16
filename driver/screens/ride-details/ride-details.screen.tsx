@@ -20,6 +20,8 @@ export default function RideDetailsScreen() {
         longitudeDelta: 0.0421,
     });
 
+    console.log(orderData);
+
     useEffect(() => {
         if (orderData?.currentLocation && orderData?.marker) {
             const latitudeDelta =
@@ -66,7 +68,7 @@ export default function RideDetailsScreen() {
                         type: "success",
                     });
                 } else {
-                    Toast.show(`Well done ${orderData.driver.name}`);
+                    Toast.show(`Ride completed!`);
                     router.push("/(tabs)/home");
                 }
             })
@@ -89,7 +91,7 @@ export default function RideDetailsScreen() {
                     )}
                     {orderData?.routeCoordinates && (
                         <Polyline
-                            coordinates={orderData.routeCoordinates.map(([latitude, longitude]: [number, number]) => ({
+                            coordinates={orderData.routeCoordinates.polyline.map(([latitude, longitude]: [number, number]) => ({
                                 latitude,
                                 longitude,
                             }))}

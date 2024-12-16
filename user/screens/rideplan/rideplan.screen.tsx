@@ -9,7 +9,8 @@ import {
     Image,
     TextInput,
     FlatList,
-    ScrollView, ActivityIndicator,
+    ScrollView,
+    ActivityIndicator,
 } from "react-native";
 import styles from "./styles";
 import { external } from "@/styles/external.style";
@@ -616,7 +617,7 @@ export default function RidePlanScreen() {
                                                                     VND{" "}
                                                                     {(
                                                                         distance ? (distance / 1000) * 9000 : 0
-                                                                    ).toFixed(2)}
+                                                                    )}
                                                                 </Text>
                                                             </View>
                                                         </Pressable>
