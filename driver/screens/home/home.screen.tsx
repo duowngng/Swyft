@@ -1,5 +1,5 @@
-import {FlatList, Modal, Text, TouchableOpacity, View,} from "react-native";
-import React, {useEffect, useState} from "react";
+import {FlatList, Modal, Platform, Text, TouchableOpacity, View,} from "react-native";
+import React, {useEffect, useRef, useState} from "react";
 import Header from "@/components/common/header";
 import {recentRidesData, rideData} from "@/configs/constants";
 import {useTheme} from "@react-navigation/native";
@@ -7,7 +7,8 @@ import RenderRideItem from "@/components/ride/render.ride.item";
 import {external} from "@/styles/external.style";
 import styles from "./styles";
 import RideCard from "@/components/ride/ride.card";
-import MapView, {Marker} from "react-native-maps";
+import MapView, { Marker, Polyline } from "react-native-maps";
+import { decode } from '@here/flexpolyline';
 import {windowHeight, windowWidth} from "@/themes/app.constant";
 import {Gps, Location} from "@/utils/icons";
 import color from "@/themes/app.colors";
@@ -17,9 +18,15 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as GeoLocation from "expo-location";
 import {Toast} from "react-native-toast-notifications";
 import {useGetDriverData} from "@/hooks/useGetDriverData";
+import Constants from "expo-constants";
+import * as Notifications from "expo-notifications";
+import * as Device from "expo-device";
+import { router } from "expo-router";
 
 export default function HomeScreen() {
+    const notificationListener = useRef<any>();
     const { driver, loading: DriverDataLoading } = useGetDriverData();
+    const [userData, setUserData] = useState<any>(null);
     const [loading, setLoading] = useState(false);
     const [isOn, setIsOn] = useState<any>();
     const [isModalVisible, setIsModalVisible] = useState(false);
@@ -29,7 +36,10 @@ export default function HomeScreen() {
         latitudeDelta: 0.0922,
         longitudeDelta: 0.0421,
     });
+    const [currentLocationName, setCurrentLocationName] = useState("");
+    const [destinationLocationName, setDestinationLocationName] = useState("");
     const [distance, setDistance] = useState<any>();
+    const [routeCoordinates, setRouteCoordinates] = useState<any>(null);
     const [wsConnected, setWsConnected] = useState(false);
     const [marker, setMarker] = useState<any>(null);
     const [currentLocation, setCurrentLocation] = useState<any>(null);
@@ -37,6 +47,114 @@ export default function HomeScreen() {
     const ws = new WebSocket("ws://192.168.1.2:8080");
 
     const { colors } = useTheme();
+
+    Notifications.setNotificationHandler({
+        handleNotification: async () => ({
+            shouldShowAlert: true,
+            shouldPlaySound: true,
+            shouldSetBadge: false,
+        }),
+    });
+
+    useEffect(() => {
+        notificationListener.current = Notifications.addNotificationReceivedListener((notification) => {
+            console.log('Notification received:', notification.request.content.data);
+            try {
+                const orderData = notification.request.content.data.orderData;
+
+                if (!orderData || !orderData.currentLocation || !orderData.marker) {
+                    throw new Error("Invalid order data received");
+                }
+
+                setIsModalVisible(true);
+                setCurrentLocation({
+                    latitude: orderData.currentLocation.latitude,
+                    longitude: orderData.currentLocation.longitude,
+                });
+                setMarker({
+                    latitude: orderData.marker.latitude,
+                    longitude: orderData.marker.longitude,
+                });
+                setRegion({
+                    latitude: (orderData.currentLocation.latitude + orderData.marker.latitude) / 2,
+                    longitude: (orderData.currentLocation.longitude + orderData.marker.longitude) / 2,
+                    latitudeDelta: Math.abs(orderData.currentLocation.latitude - orderData.marker.latitude) * 2,
+                    longitudeDelta: Math.abs(orderData.currentLocation.longitude - orderData.marker.longitude) * 2,
+                });
+                setDistance(orderData.distance);
+                setCurrentLocationName(orderData.currentLocationName);
+                setDestinationLocationName(orderData.destinationLocation);
+                setUserData(orderData.user);
+
+                const coordinates = decode(orderData.encodedPolyline);
+                setRouteCoordinates(coordinates);
+            } catch (error) {
+                console.error("Error handling notification:", error);
+            }
+        });
+
+        return () => {
+            if (notificationListener.current) {
+                Notifications.removeNotificationSubscription(notificationListener.current);
+            }
+        };
+    }, []);
+
+    useEffect(() => {
+        registerForPushNotificationsAsync();
+    }, []);
+
+    async function registerForPushNotificationsAsync() {
+        if (Device.isDevice) {
+            const { status: existingStatus } =
+                await Notifications.getPermissionsAsync();
+            let finalStatus = existingStatus;
+            if (existingStatus !== "granted") {
+                const { status } = await Notifications.requestPermissionsAsync();
+                finalStatus = status;
+            }
+            if (finalStatus !== "granted") {
+                Toast.show("Failed to get push token for push notification!", {
+                    type: "danger",
+                });
+                return;
+            }
+            const projectId =
+                Constants?.expoConfig?.extra?.eas?.projectId ??
+                Constants?.easConfig?.projectId;
+            if (!projectId) {
+                Toast.show("Failed to get project id for push notification!", {
+                    type: "danger",
+                });
+            }
+            try {
+                const pushTokenString = (
+                    await Notifications.getExpoPushTokenAsync({
+                        projectId,
+                    })
+                ).data;
+                console.log(pushTokenString);
+                // return pushTokenString;
+            } catch (e: unknown) {
+                Toast.show(`${e}`, {
+                    type: "danger",
+                });
+            }
+        } else {
+            Toast.show("Must use physical device for Push Notifications", {
+                type: "danger",
+            });
+        }
+
+        if (Platform.OS === "android") {
+            Notifications.setNotificationChannelAsync("default", {
+                name: "default",
+                importance: Notifications.AndroidImportance.MAX,
+                vibrationPattern: [0, 250, 250, 250],
+                lightColor: "#FF231F7C",
+            });
+        }
+    }
 
     useEffect(() => {
         const fetchStatus = async () => {
@@ -91,16 +209,30 @@ export default function HomeScreen() {
         return R * c;
     };
 
-    const sendLocationUpdate =  (location: any) => {
-        if (ws.readyState === WebSocket.OPEN) {
-            const message = JSON.stringify({
-                type: "locationUpdate",
-                data: location,
-                role: "driver",
-                driver: driver?.id,
+    const sendLocationUpdate = async (location: any) => {
+        const accessToken = await AsyncStorage.getItem("accessToken");
+        await axios
+            .get(`${process.env.EXPO_PUBLIC_SERVER_URI}/driver/me`, {
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                },
+            })
+            .then((res) => {
+                if (res.data) {
+                    if (ws.readyState === WebSocket.OPEN) {
+                        const message = JSON.stringify({
+                            type: "locationUpdate",
+                            data: location,
+                            role: "driver",
+                            driver: res.data.driver.id!,
+                        });
+                        ws.send(message);
+                    }
+                }
+            })
+            .catch((error) => {
+                console.log(error);
             });
-            ws.send(message);
-        }
     };
 
     useEffect(() => {
@@ -120,16 +252,16 @@ export default function HomeScreen() {
                 async (position) => {
                     const { latitude, longitude } = position.coords;
                     const newLocation = { latitude, longitude };
-                    // if (
-                    //     !lastLocation ||
-                    //     haversineDistance(lastLocation, newLocation) > 200
-                    // ) {
+                    if (
+                        !lastLocation ||
+                        haversineDistance(lastLocation, newLocation) > 200
+                    ) {
                         setCurrentLocation(newLocation);
-                        // setLastLocation(newLocation);
+                        setLastLocation(newLocation);
                         if (ws.readyState === WebSocket.OPEN) {
                             sendLocationUpdate(newLocation);
                         }
-                    // }
+                    }
                 }
             );
         })();
@@ -137,7 +269,7 @@ export default function HomeScreen() {
 
     const handleClose = () => {
         setIsModalVisible(false);
-    }
+    };
 
     const handleStatusChange = async () => {
         if (!loading) {
@@ -161,6 +293,74 @@ export default function HomeScreen() {
             } else {
                 setLoading(false);
             }
+        }
+    };
+
+    const sendPushNotification = async (expoPushToken: string, data: any) => {
+        const message = {
+            to: expoPushToken,
+            sound: "default",
+            title: "Ride Request Accepted!",
+            body: `Your driver is on the way!`,
+            data: { orderData: data },
+        };
+        await axios
+            .post("https://exp.host/--/api/v2/push/send", message)
+            .catch((error) => {
+                console.log(error);
+            });
+    };
+
+    const acceptRideHandler = async () => {
+        console.log("Accept button pressed");
+        const accessToken = await AsyncStorage.getItem("accessToken");
+        try {
+            const response = await axios.post(
+                `${process.env.EXPO_PUBLIC_SERVER_URI}/driver/new-ride`,
+                {
+                    userId: userData?.id!,
+                    charge: (distance ? (distance / 1000) * 9000 : 0).toFixed(2),
+                    status: "Processing",
+                    currentLocationName,
+                    destinationLocationName,
+                    distance,
+                },
+                {
+                    headers: {
+                        Authorization: `Bearer ${accessToken}`,
+                    },
+                }
+            );
+
+            console.log("Ride created:", response.data);
+
+            const data = {
+                ...driver,
+                currentLocation,
+                marker,
+                distance,
+                routeCoordinates,
+            };
+            const driverPushToken = "ExponentPushToken[G53H5vIB_Ldk7xrFt-fgX0]";
+
+            await sendPushNotification(driverPushToken, data);
+
+            const rideData = {
+                user: userData,
+                currentLocation,
+                marker,
+                driver,
+                distance,
+                routeCoordinates,
+                // rideData: response.data.newRide,
+            };
+            console.log("Navigating to ride details with data:", rideData);
+            router.push({
+                pathname: "/(routes)/ride-details",
+                params: { orderData: JSON.stringify(rideData) },
+            });
+        } catch (error) {
+            console.error("Error accepting ride:", error);
         }
     };
 
@@ -206,16 +406,16 @@ export default function HomeScreen() {
                             >
                                 {marker && <Marker coordinate={marker} />}
                                 {currentLocation && <Marker coordinate={currentLocation} />}
-                                {/*{routeCoordinates && (*/}
-                                {/*    <Polyline*/}
-                                {/*        coordinates={routeCoordinates.polyline.map(([latitude, longitude]: [any, any]) => ({*/}
-                                {/*            latitude,*/}
-                                {/*            longitude,*/}
-                                {/*        }))}*/}
-                                {/*        strokeWidth={4}*/}
-                                {/*        strokeColor="blue"*/}
-                                {/*    />*/}
-                                {/*)}*/}
+                                {routeCoordinates && (
+                                    <Polyline
+                                        coordinates={routeCoordinates.polyline.map(([latitude, longitude]: [any, any]) => ({
+                                            latitude,
+                                            longitude,
+                                        }))}
+                                        strokeWidth={4}
+                                        strokeColor="blue"
+                                    />
+                                )}
                             </MapView>
                             <View style={{ flexDirection: "row" }}>
                                 <View style={styles.leftView}>
@@ -230,11 +430,11 @@ export default function HomeScreen() {
                                 </View>
                                 <View style={styles.rightView}>
                                     <Text style={[styles.pickup, { color: colors.text }]}>
-                                        Minh Khai, Vĩnh Tuy, Hai Bà Trưng, Hanoi
+                                        {currentLocationName}
                                     </Text>
                                     <View style={styles.border} />
                                     <Text style={[styles.drop, { color: colors.text }]}>
-                                        Lý Thái Tổ, Hoàn Kiếm, Hanoi
+                                        {destinationLocationName}
                                     </Text>
                                 </View>
                             </View>
@@ -244,7 +444,7 @@ export default function HomeScreen() {
                                     fontSize: windowHeight(14),
                                 }}
                             >
-                                Distance: 5.4 km
+                                Distance: {(distance / 1000).toFixed(2)} km
                             </Text>
                             <Text
                                 style={{
@@ -253,7 +453,7 @@ export default function HomeScreen() {
                                     fontSize: windowHeight(14),
                                 }}
                             >
-                                Amount: 60,000 VND
+                                Price: {(distance ? (distance / 1000) * 9000 : 0).toFixed(2)} VND
                             </Text>
                             <View
                                 style={{
@@ -271,7 +471,7 @@ export default function HomeScreen() {
                                 />
                                 <Button
                                     title="Accept"
-                                    onPress={() => {}}
+                                    onPress={() => acceptRideHandler()}
                                     width={windowWidth(120)}
                                     height={windowHeight(30)}
                                 />

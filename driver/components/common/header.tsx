@@ -54,13 +54,8 @@ export default function Header({ isOn, toggleSwitch }: HeaderProps) {
                             gap: windowWidth(2),
                         }}
                     >
-                        <Text
-                            style={[styles.valueTitle, { color: isOn ? "green" : "#000" }]}
-                        >
-                            {isOn ? "On" : "Off"}
-                        </Text>
                         <Text>
-                            *You are {isOn ? "available" : "not available"} for ride now!
+                            You are {isOn ? "available" : "not available"} for ride now!
                         </Text>
                     </View>
                     <View style={styles.switchBorder}>

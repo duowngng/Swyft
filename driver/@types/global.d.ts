@@ -12,7 +12,7 @@ type DriverType = {
   id: string;
   name: string;
   country: string;
-  phone_number: string;
+  phoneNumber: string;
   email: string;
   vehicle_type: string;
   registration_number: string;

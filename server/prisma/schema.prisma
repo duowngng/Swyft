@@ -55,11 +55,11 @@ model rides {
   charge                  Float
   currentLocationName     String
   destinationLocationName String
-  distance                String
+  distance                Int
   status                  String
   rating                  Float?
   user                    user     @relation("UserRides", fields: [userId], references: [id])
   driver                  driver   @relation("DriverRides", fields: [driverId], references: [id])
-  createdAt                DateTime @default(now())
+  createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
 }

@@ -32,10 +32,14 @@ import { decode } from '@here/flexpolyline';
 import moment from "moment";
 import Button from "@/components/common/button";
 import { useGetUserData } from "@/hooks/useGetUserData";
+import * as Notifications from "expo-notifications";
+import * as Device from "expo-device";
+import Constants from "expo-constants";
 
 export default function RidePlanScreen() {
     const { user } = useGetUserData();
     const ws = useRef<any>(null);
+    const notificationListener = useRef<any>();
     const [wsConnected, setWsConnected] = useState(false);
     const [places, setPlaces] = useState<any>([]);
     const [query, setQuery] = useState("");
@@ -47,6 +51,7 @@ export default function RidePlanScreen() {
     });
     const [marker, setMarker] = useState<any>(null);
     const [currentLocation, setCurrentLocation] = useState<any>(null);
+    const [destinationLocation, setDestinationLocation] = useState("");
     const [distance, setDistance] = useState<any>(null);
     const [locationSelected, setLocationSelected] = useState(false);
     const [selectedVehicle, setSelectedVehicle] = useState("Car");
@@ -56,11 +61,42 @@ export default function RidePlanScreen() {
     });
     const [keyboardAvoidingHeight, setKeyboardAvoidingHeight] = useState(false);
     const [routeCoordinates, setRouteCoordinates] = useState<any>(null);
+    const [encodedPolyline, setEncodedPolyline] = useState("");
     const [routeSummary, setRouteSummary] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     const [driverLists, setDriverLists] = useState([]);
     const [selectedDriver, setSelectedDriver] = useState<DriverType>();
     const [driverLoader, setDriverLoader] = useState(true);
+
+    Notifications.setNotificationHandler({
+        handleNotification: async () => ({
+            shouldShowAlert: true,
+            shouldPlaySound: true,
+            shouldSetBadge: false,
+        }),
+    });
+
+    useEffect(() => {
+        notificationListener.current =
+            Notifications.addNotificationReceivedListener((notification) => {
+                const orderData = {
+                    currentLocation: notification.request.content.data.currentLocation,
+                    marker: notification.request.content.data.marker,
+                    distance: notification.request.content.data.distance,
+                    driver: notification.request.content.data.orderData,
+                };
+                router.push({
+                    pathname: "/(routes)/ride-details",
+                    params: { orderData: JSON.stringify(orderData) },
+                });
+            });
+
+        return () => {
+            Notifications.removeNotificationSubscription(
+                notificationListener.current
+            );
+        };
+    }, []);
 
     useEffect(() => {
         (async () => {
@@ -119,6 +155,63 @@ export default function RidePlanScreen() {
         };
     }, []);
 
+    useEffect(() => {
+        registerForPushNotificationsAsync();
+    }, []);
+
+    async function registerForPushNotificationsAsync() {
+        if (Device.isDevice) {
+            const { status: existingStatus } =
+                await Notifications.getPermissionsAsync();
+            let finalStatus = existingStatus;
+            if (existingStatus !== "granted") {
+                const { status } = await Notifications.requestPermissionsAsync();
+                finalStatus = status;
+            }
+            if (finalStatus !== "granted") {
+                Toast.show("Failed to get push token for push notification!", {
+                    type: "danger",
+                });
+                return;
+            }
+            const projectId =
+                Constants?.expoConfig?.extra?.eas?.projectId ??
+                Constants?.easConfig?.projectId;
+            if (!projectId) {
+                Toast.show("Failed to get project id for push notification!", {
+                    type: "danger",
+                });
+            }
+            try {
+                const pushTokenString = (
+                    await Notifications.getExpoPushTokenAsync({
+                        projectId,
+                    })
+                ).data;
+                console.log(pushTokenString);
+                //ExponentPushToken[G53H5vIB_Ldk7xrFt-fgX0]
+                // return pushTokenString;
+            } catch (e: unknown) {
+                Toast.show(`${e}`, {
+                    type: "danger",
+                });
+            }
+        } else {
+            Toast.show("Must use physical device for Push Notifications", {
+                type: "danger",
+            });
+        }
+
+        if (Platform.OS === "android") {
+            Notifications.setNotificationChannelAsync("default", {
+                name: "default",
+                importance: Notifications.AndroidImportance.MAX,
+                vibrationPattern: [0, 250, 250, 250],
+                lightColor: "#FF231F7C",
+            });
+        }
+    }
+
     const fetchPlaces = async (input: string) => {
         try {
             const response = await axios.get(
@@ -142,7 +235,6 @@ export default function RidePlanScreen() {
             console.error("Error fetching places:", error);
         }
     };
-
 
     const debouncedFetchPlaces = useCallback(_.debounce(fetchPlaces, 100), []);
 
@@ -219,12 +311,13 @@ export default function RidePlanScreen() {
                 { params }
             );
 
-            console.log('Response data:', response);
+            console.log('Route response:', response.data);
 
             if (response.data.routes && response.data.routes.length > 0) {
                 const polyline = response.data.routes[0].sections[0].polyline;
 
                 if (polyline) {
+                    setEncodedPolyline(polyline);
                     const coordinates = decode(polyline);
                     setRouteCoordinates(coordinates);
                 } else {
@@ -240,10 +333,8 @@ export default function RidePlanScreen() {
                 console.log('Route length:', length);
                 console.log('Route duration:', duration);
 
-                let distanceObject = {};
-                distanceObject = { length: length};
-
-                setDistance(distanceObject);
+                setDistance(length);
+                console.log('Distance:', distance);
             } else {
                 console.error('No route data found in the response');
             }
@@ -257,7 +348,6 @@ export default function RidePlanScreen() {
     const getEstimatedArrivalTime = (travelTime: any) => {
         const now = moment();
         const arrivalTime = now.add(travelTime, "seconds");
-        console.log(travelTime, arrivalTime);
         return arrivalTime.format("hh:mm A");
     };
 
@@ -305,12 +395,56 @@ export default function RidePlanScreen() {
         }
     };
 
-    const handleOrder = async () => {
-        const data = {
-            driver: selectedDriver || driverLists[0],
-            user,
-            currentLocation,
+    const sendPushNotification = async (expoPushToken: string, data: any) => {
+        const message = {
+            to: expoPushToken,
+            sound: "default",
+            title: "New Ride Request",
+            body: "You have a new ride request.",
+            data: { orderData: data },
         };
+
+        try {
+            const response = await axios.post("https://exp.host/--/api/v2/push/send", message);
+            console.log("Push notification sent:", response);
+        } catch (error) {
+            console.error("Error sending push notification:", error);
+        }
+    };
+
+    const handleOrder = async () => {
+        try {
+            const response = await axios.get(
+                `https://revgeocode.search.hereapi.com/v1/revgeocode`,
+                {
+                    params: {
+                        at: `${currentLocation?.latitude},${currentLocation?.longitude}`,
+                        apiKey: process.env.EXPO_PUBLIC_HERE_API_KEY,
+                    },
+                }
+            );
+
+            // Extract the location details from the response
+            const currentLocationName = response.data.items[0]?.address?.label;
+
+            // Prepare the data for the order
+            const data = {
+                user,
+                currentLocation,
+                marker,
+                distance,
+                currentLocationName,
+                destinationLocation,
+                encodedPolyline,
+            };
+
+            const driverPushToken = "ExponentPushToken[gd5owvNlm7GhY1MqX5PfMy]";
+
+            // Send the push notification
+            await sendPushNotification(driverPushToken, data);
+        } catch (error) {
+            console.error("Error fetching location details:", error);
+        }
     };
 
     const handlePlaceSelect = async (placeId: any) => {
@@ -325,9 +459,14 @@ export default function RidePlanScreen() {
                 }
             );
 
-            const { lat, lng } = response.data.position;
+            // Extracting data from the response
+            const { title, position, address } = response.data;
+            const destinationName = title; // Name of the place
+            const fullAddress = address.label; // Full address
+            const { lat, lng } = position; // Coordinates
 
             const selectedDestination = { latitude: lat, longitude: lng };
+            setDestinationLocation(fullAddress);
             setRegion({
                 ...region,
                 latitude: lat,
@@ -476,7 +615,7 @@ export default function RidePlanScreen() {
                                                                 >
                                                                     VND{" "}
                                                                     {(
-                                                                        distance ? (distance.length / 1000) * 9000 : 0
+                                                                        distance ? (distance / 1000) * 9000 : 0
                                                                     ).toFixed(2)}
                                                                 </Text>
                                                             </View>

@@ -17,6 +17,9 @@ export {
 export default function RootLayout() {
   const [loaded, error] = useFonts({
     "TT-Octosquares-Medium": require("../assets/fonts/TT-Octosquares-Medium.ttf"),
+    "GTWalsheimPro-Bold": require("../assets/fonts/GTWalsheimPro-Bold.ttf"),
+    "GTWalsheimPro-Medium": require("../assets/fonts/GTWalsheimPro-Medium.ttf"),
+    "GTWalsheimPro-Regular": require("../assets/fonts/GTWalsheimPro-Regular.ttf"),
   });
 
   useEffect(() => {

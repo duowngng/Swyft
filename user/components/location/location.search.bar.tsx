@@ -14,8 +14,8 @@ export default function LocationSearchBar() {
         { backgroundColor: color.lightGray },
         { flexDirection: "row" },
         { justifyContent: "space-around" },
-        { paddingHorizontal: windowWidth(0) },
-        { paddingRight: windowWidth(140) },
+        { paddingHorizontal: windowWidth(30) },
+        { paddingRight: windowWidth(50) },
       ]}
       onPress={() => router.push("/(routes)/rideplan")}
     >
